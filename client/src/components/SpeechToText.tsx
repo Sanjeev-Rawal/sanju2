@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Mic, Clipboard, Trash2 } from "lucide-react";
+import { Mic, Clipboard, Trash2, Sparkles } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useSpeechRecognition } from "@/lib/useSpeechRecognition";
 import { Textarea } from "@/components/ui/textarea";
@@ -184,52 +184,55 @@ export default function SpeechToText() {
           size="icon"
           onClick={toggleRecording}
           disabled={!isSupported}
-          className={`w-20 h-20 rounded-full ${
+          className={`w-24 h-24 rounded-full app-button ${
             isRecording 
-              ? "bg-red-600 hover:bg-red-700 focus:ring-red-300" 
-              : "bg-blue-600 hover:bg-blue-700 focus:ring-blue-300"
-          } text-white flex items-center justify-center focus:outline-none focus:ring-4 transition-all`}
+              ? "mic-button-recording" 
+              : "mic-button"
+          } text-white flex items-center justify-center transition-all duration-300`}
           aria-label={isRecording ? "Stop recording" : "Start recording"}
         >
           <Mic className="h-10 w-10" />
         </Button>
         
         {isRecording && (
-          <div className="mt-4 flex items-center space-x-2">
+          <div className="mt-4 flex items-center space-x-2 fade-in">
             <div className="recording-dot w-3 h-3 bg-red-600 rounded-full"></div>
-            <span className="text-red-600 font-medium">Recording...</span>
+            <span className="text-red-600 font-semibold">Recording...</span>
           </div>
         )}
         
         {isProcessing && !isRecording && (
-          <div className="mt-4 flex items-center space-x-2">
+          <div className="mt-4 flex items-center space-x-2 fade-in">
             <div className="flex space-x-1">
-              <div className="loading-dot w-2 h-2 bg-blue-600 rounded-full"></div>
-              <div className="loading-dot w-2 h-2 bg-blue-600 rounded-full"></div>
-              <div className="loading-dot w-2 h-2 bg-blue-600 rounded-full"></div>
+              <div className="loading-dot w-2 h-2 bg-indigo-600 rounded-full"></div>
+              <div className="loading-dot w-2 h-2 bg-indigo-600 rounded-full"></div>
+              <div className="loading-dot w-2 h-2 bg-indigo-600 rounded-full"></div>
             </div>
-            <span className="text-blue-600 font-medium">Processing...</span>
+            <span className="text-indigo-600 font-semibold">Processing...</span>
           </div>
         )}
       </div>
 
       {/* Transcription Display */}
-      <Card className="bg-white rounded-lg shadow-md">
-        <CardContent className="p-5 md:p-6 min-h-[250px] max-h-[400px] overflow-y-auto">
-          <h2 className="text-lg font-semibold mb-3 text-slate-700">Transcription</h2>
+      <Card className="app-card">
+        <CardContent className="p-5 md:p-6 min-h-[280px] max-h-[450px] overflow-y-auto">
+          <div className="flex items-center mb-4 text-slate-700">
+            <Sparkles className="h-5 w-5 text-indigo-500 mr-2" />
+            <h2 className="text-lg font-semibold">Your Transcription</h2>
+          </div>
           
-          <div className="relative min-h-[200px]">
+          <div className="relative min-h-[200px] text-area-container">
             <Textarea
               ref={textareaRef}
               value={transcription}
               onChange={handleTextChange}
               placeholder="Type or speak to add text here..."
-              className="min-h-[200px] resize-none p-2 text-slate-700 border border-slate-300 focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
+              className="custom-textarea min-h-[200px] p-3 text-slate-700"
             />
             
-            {/* Show interim text at the cursor position */}
+            {/* Show interim text with better styling */}
             {interimTranscription && (
-              <div className="absolute bottom-2 right-2 text-slate-400 bg-white bg-opacity-75 px-2 py-1 rounded text-sm">
+              <div className="absolute bottom-3 right-3 interim-text">
                 {interimTranscription}...
               </div>
             )}
@@ -238,12 +241,12 @@ export default function SpeechToText() {
       </Card>
       
       {/* Action Buttons */}
-      <div className="flex flex-wrap justify-center gap-4">
+      <div className="flex flex-wrap justify-center gap-4 mt-6">
         <Button
           variant="default"
           onClick={copyToClipboard}
           disabled={!hasTranscription}
-          className="px-4 py-2 bg-slate-700 hover:bg-slate-800 text-white rounded-md flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-slate-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+          className="px-5 py-2 copy-button app-button text-white rounded-full flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Clipboard className="h-5 w-5" />
           Copy Text
@@ -253,7 +256,7 @@ export default function SpeechToText() {
           variant="secondary"
           onClick={clearTranscription}
           disabled={!hasTranscription}
-          className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-md flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-slate-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+          className="px-5 py-2 clear-button app-button text-slate-700 rounded-full flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Trash2 className="h-5 w-5" />
           Clear
