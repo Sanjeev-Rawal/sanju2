@@ -1,22 +1,20 @@
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Mic, Clipboard, Trash2, Type, Save } from "lucide-react";
+import { Mic, Clipboard, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useSpeechRecognition } from "@/lib/useSpeechRecognition";
 import { Textarea } from "@/components/ui/textarea";
 
 export default function SpeechToText() {
   const { toast } = useToast();
-  const [finalTranscription, setFinalTranscription] = useState("");
+  const [transcription, setTranscription] = useState("");
   const [interimTranscription, setInterimTranscription] = useState("");
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
-  const [editableText, setEditableText] = useState("");
   const [isMicrophoneAccessGranted, setIsMicrophoneAccessGranted] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const hasTranscription = finalTranscription.trim().length > 0 || editableText.trim().length > 0;
+  const hasTranscription = transcription.trim().length > 0;
   
   // Check microphone access on component mount
   useEffect(() => {
@@ -37,6 +35,13 @@ export default function SpeechToText() {
     
     checkMicrophoneAccess();
   }, []);
+
+  // Focus the textarea on component mount
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.focus();
+    }
+  }, []);
   
   const { 
     start, 
@@ -47,12 +52,25 @@ export default function SpeechToText() {
     onResult: (final, interim) => {
       console.log("Recognition result:", { final, interim });
       if (final) {
-        if (isEditing) {
-          // If editing, append to the editable text
-          setEditableText(prev => prev + final + " ");
-        } else {
-          setFinalTranscription(prev => prev + final + " ");
-        }
+        // Append to the editable text
+        setTranscription(prev => {
+          // Get the current cursor position
+          const cursorPos = textareaRef.current?.selectionStart || prev.length;
+          // Insert the new text at the current cursor position
+          const newText = prev.substring(0, cursorPos) + final + " " + prev.substring(cursorPos);
+          
+          // Update the cursor position after React updates the DOM
+          setTimeout(() => {
+            if (textareaRef.current) {
+              const newCursorPos = cursorPos + final.length + 1;
+              textareaRef.current.selectionStart = newCursorPos;
+              textareaRef.current.selectionEnd = newCursorPos;
+              textareaRef.current.focus();
+            }
+          }, 0);
+          
+          return newText;
+        });
       }
       setInterimTranscription(interim);
       setIsProcessing(!final && interim.length > 0);
@@ -76,19 +94,6 @@ export default function SpeechToText() {
   useEffect(() => {
     setIsRecording(isListening);
   }, [isListening]);
-
-  // Effect to initialize editable text when switching to edit mode
-  useEffect(() => {
-    if (isEditing) {
-      setEditableText(finalTranscription);
-      // Focus the textarea and place cursor at the end
-      if (textareaRef.current) {
-        textareaRef.current.focus();
-        textareaRef.current.selectionStart = textareaRef.current.value.length;
-        textareaRef.current.selectionEnd = textareaRef.current.value.length;
-      }
-    }
-  }, [isEditing, finalTranscription]);
 
   // Toggle recording state
   const toggleRecording = async () => {
@@ -129,27 +134,11 @@ export default function SpeechToText() {
     }
   };
 
-  // Toggle edit mode
-  const toggleEditMode = () => {
-    if (isEditing) {
-      // Save edited text
-      setFinalTranscription(editableText);
-      setIsEditing(false);
-      toast({
-        title: "Success",
-        description: "Changes saved successfully",
-      });
-    } else {
-      setIsEditing(true);
-    }
-  };
-
   // Copy transcription to clipboard
   const copyToClipboard = () => {
-    const textToCopy = isEditing ? editableText : finalTranscription;
-    if (!textToCopy) return;
+    if (!transcription) return;
     
-    navigator.clipboard.writeText(textToCopy)
+    navigator.clipboard.writeText(transcription)
       .then(() => {
         toast({
           title: "Success",
@@ -168,18 +157,22 @@ export default function SpeechToText() {
 
   // Clear transcription
   const clearTranscription = () => {
-    setFinalTranscription("");
+    setTranscription("");
     setInterimTranscription("");
-    setEditableText("");
     toast({
       title: "Success",
       description: "Transcription cleared",
     });
+    
+    // Focus the textarea after clearing
+    if (textareaRef.current) {
+      textareaRef.current.focus();
+    }
   };
 
   // Handle text change in editable mode
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setEditableText(e.target.value);
+    setTranscription(e.target.value);
   };
 
   return (
@@ -223,50 +216,24 @@ export default function SpeechToText() {
       {/* Transcription Display */}
       <Card className="bg-white rounded-lg shadow-md">
         <CardContent className="p-5 md:p-6 min-h-[250px] max-h-[400px] overflow-y-auto">
-          <div className="flex justify-between items-center mb-3">
-            <h2 className="text-lg font-semibold text-slate-700">Transcription</h2>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={toggleEditMode}
-              className="flex items-center gap-1 text-sm border border-slate-300 hover:bg-slate-100"
-            >
-              {isEditing ? (
-                <>
-                  <Save className="h-4 w-4" />
-                  Save
-                </>
-              ) : (
-                <>
-                  <Type className="h-4 w-4" />
-                  Edit
-                </>
-              )}
-            </Button>
-          </div>
+          <h2 className="text-lg font-semibold mb-3 text-slate-700">Transcription</h2>
           
-          {isEditing ? (
+          <div className="relative min-h-[200px]">
             <Textarea
               ref={textareaRef}
-              value={editableText}
+              value={transcription}
               onChange={handleTextChange}
-              placeholder="Type or edit your text here..."
+              placeholder="Type or speak to add text here..."
               className="min-h-[200px] resize-none p-2 text-slate-700 border border-slate-300 focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
             />
-          ) : (
-            <div className="text-slate-700 whitespace-pre-wrap min-h-[200px]">
-              {finalTranscription || interimTranscription ? (
-                <>
-                  {finalTranscription}
-                  <span className="text-slate-400">{interimTranscription}</span>
-                </>
-              ) : (
-                <p className="text-slate-400 italic text-center py-10">
-                  Your transcribed text will appear here...
-                </p>
-              )}
-            </div>
-          )}
+            
+            {/* Show interim text at the cursor position */}
+            {interimTranscription && (
+              <div className="absolute bottom-2 right-2 text-slate-400 bg-white bg-opacity-75 px-2 py-1 rounded text-sm">
+                {interimTranscription}...
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
       
