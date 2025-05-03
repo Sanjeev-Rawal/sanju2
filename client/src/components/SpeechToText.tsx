@@ -14,8 +14,29 @@ export default function SpeechToText() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editableText, setEditableText] = useState("");
+  const [isMicrophoneAccessGranted, setIsMicrophoneAccessGranted] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const hasTranscription = finalTranscription.trim().length > 0 || editableText.trim().length > 0;
+  
+  // Check microphone access on component mount
+  useEffect(() => {
+    // Check if microphone permission has been granted
+    const checkMicrophoneAccess = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        setIsMicrophoneAccessGranted(true);
+        console.log("Microphone access granted");
+        
+        // Stop the tracks to release the microphone
+        stream.getTracks().forEach(track => track.stop());
+      } catch (error) {
+        console.error("Microphone access not granted:", error);
+        setIsMicrophoneAccessGranted(false);
+      }
+    };
+    
+    checkMicrophoneAccess();
+  }, []);
   
   const { 
     start, 
@@ -24,6 +45,7 @@ export default function SpeechToText() {
     isListening
   } = useSpeechRecognition({
     onResult: (final, interim) => {
+      console.log("Recognition result:", { final, interim });
       if (final) {
         if (isEditing) {
           // If editing, append to the editable text
@@ -36,11 +58,16 @@ export default function SpeechToText() {
       setIsProcessing(!final && interim.length > 0);
     },
     onError: (error) => {
+      console.error("Speech recognition error:", error);
       toast({
         variant: "destructive",
         title: "Speech Recognition Error",
         description: `${error}. Please try again.`,
       });
+      setIsRecording(false);
+    },
+    onEnd: () => {
+      console.log("Speech recognition ended");
       setIsRecording(false);
     }
   });
@@ -64,7 +91,7 @@ export default function SpeechToText() {
   }, [isEditing, finalTranscription]);
 
   // Toggle recording state
-  const toggleRecording = () => {
+  const toggleRecording = async () => {
     if (!isSupported) {
       toast({
         variant: "destructive",
@@ -74,10 +101,30 @@ export default function SpeechToText() {
       return;
     }
 
+    // Request microphone permission if not already granted
+    if (!isMicrophoneAccessGranted) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        setIsMicrophoneAccessGranted(true);
+        // Stop the tracks to release the microphone
+        stream.getTracks().forEach(track => track.stop());
+      } catch (error) {
+        console.error("Microphone access denied:", error);
+        toast({
+          variant: "destructive",
+          title: "Microphone Access Denied",
+          description: "Please allow microphone access to use speech recognition.",
+        });
+        return;
+      }
+    }
+
     if (!isRecording) {
+      console.log("Starting speech recognition...");
       setIsProcessing(false);
       start();
     } else {
+      console.log("Stopping speech recognition...");
       stop();
     }
   };
