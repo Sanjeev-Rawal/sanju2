@@ -52,17 +52,26 @@ export default function SpeechToText() {
     onResult: (final, interim) => {
       console.log("Recognition result:", { final, interim });
       if (final) {
+        // Process the final text to reduce excessive periods
+        const processedText = final
+          // Replace multiple periods with a single one
+          .replace(/\.+/g, '.')
+          // Remove periods at the end of words that aren't sentence endings
+          .replace(/(\w)\.(\s+\w)/g, '$1$2')
+          // Ensure proper spacing after remaining periods
+          .replace(/\.(\w)/g, '. $1');
+        
         // Append to the editable text
         setTranscription(prev => {
           // Get the current cursor position
           const cursorPos = textareaRef.current?.selectionStart || prev.length;
-          // Insert the new text at the current cursor position
-          const newText = prev.substring(0, cursorPos) + final + " " + prev.substring(cursorPos);
+          // Insert the processed text at the current cursor position
+          const newText = prev.substring(0, cursorPos) + processedText + " " + prev.substring(cursorPos);
           
           // Update the cursor position after React updates the DOM
           setTimeout(() => {
             if (textareaRef.current) {
-              const newCursorPos = cursorPos + final.length + 1;
+              const newCursorPos = cursorPos + processedText.length + 1;
               textareaRef.current.selectionStart = newCursorPos;
               textareaRef.current.selectionEnd = newCursorPos;
               textareaRef.current.focus();
@@ -72,7 +81,14 @@ export default function SpeechToText() {
           return newText;
         });
       }
-      setInterimTranscription(interim);
+      
+      // Process interim transcription as well
+      const processedInterim = interim
+        .replace(/\.+/g, '.')
+        .replace(/(\w)\.(\s+\w)/g, '$1$2')
+        .replace(/\.(\w)/g, '. $1');
+      
+      setInterimTranscription(processedInterim);
       setIsProcessing(!final && interim.length > 0);
     },
     onError: (error) => {
