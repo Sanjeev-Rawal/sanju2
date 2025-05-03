@@ -211,14 +211,14 @@ export default function SpeechToText() {
         </Button>
         
         {isRecording && (
-          <div className="mt-4 flex items-center space-x-2 fade-in">
+          <div className="mt-3 flex items-center space-x-2 fade-in">
             <div className="recording-dot w-3 h-3 bg-red-600 rounded-full"></div>
             <span className="text-red-600 font-semibold">Recording...</span>
           </div>
         )}
         
         {isProcessing && !isRecording && (
-          <div className="mt-4 flex items-center space-x-2 fade-in">
+          <div className="mt-3 flex items-center space-x-2 fade-in">
             <div className="flex space-x-1">
               <div className="loading-dot w-2 h-2 bg-indigo-600 rounded-full"></div>
               <div className="loading-dot w-2 h-2 bg-indigo-600 rounded-full"></div>
@@ -230,20 +230,20 @@ export default function SpeechToText() {
       </div>
 
       {/* Transcription Display */}
-      <Card className="app-card">
-        <CardContent className="p-5 md:p-6 min-h-[280px] max-h-[450px] overflow-y-auto">
-          <div className="flex items-center mb-4 text-slate-700">
+      <Card className="app-card w-[calc(100%+9px)] mx-auto mt-5">
+        <CardContent className="p-4 md:p-5 min-h-[270px] max-h-[440px] overflow-y-auto">
+          <div className="flex items-center mb-3 text-slate-700">
             <Sparkles className="h-5 w-5 text-indigo-500 mr-2" />
             <h2 className="text-lg font-semibold">Your Transcription</h2>
           </div>
           
-          <div className="relative min-h-[200px] text-area-container">
+          <div className="relative min-h-[190px] text-area-container w-[calc(100%+9px)]">
             <Textarea
               ref={textareaRef}
               value={transcription}
               onChange={handleTextChange}
               placeholder="Type or speak to add text here..."
-              className="custom-textarea min-h-[200px] p-3 text-slate-700"
+              className="custom-textarea min-h-[190px] p-3 text-slate-700 w-full"
             />
             
             {/* Show interim text with better styling */}
@@ -257,7 +257,7 @@ export default function SpeechToText() {
       </Card>
       
       {/* Action Buttons */}
-      <div className="flex flex-wrap justify-center gap-4 mt-6">
+      <div className="flex flex-wrap justify-center gap-4 mt-5">
         <Button
           variant="default"
           onClick={copyToClipboard}
