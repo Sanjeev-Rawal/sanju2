@@ -15,79 +15,52 @@ export default function SpeechToText() {
   const [isMicrophoneAccessGranted, setIsMicrophoneAccessGranted] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const hasTranscription = transcription.trim().length > 0;
-  
-  // Check microphone access on component mount
+
+  // Check microphone access on mount
   useEffect(() => {
-    // Check if microphone permission has been granted
-    const checkMicrophoneAccess = async () => {
+    (async () => {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         setIsMicrophoneAccessGranted(true);
-        console.log("Microphone access granted");
-        
-        // Stop the tracks to release the microphone
-        stream.getTracks().forEach(track => track.stop());
-      } catch (error) {
-        console.error("Microphone access not granted:", error);
+        stream.getTracks().forEach(t => t.stop());
+      } catch {
         setIsMicrophoneAccessGranted(false);
       }
-    };
-    
-    checkMicrophoneAccess();
+    })();
   }, []);
 
-  // Focus the textarea on component mount
+  // Focus textarea on mount
   useEffect(() => {
-    if (textareaRef.current) {
-      textareaRef.current.focus();
-    }
+    textareaRef.current?.focus();
   }, []);
-  
-  const { 
-    start, 
-    stop, 
+
+  const {
+    start,
+    stop,
     isSupported,
     isListening
   } = useSpeechRecognition({
     onResult: (final, interim) => {
-      console.log("Recognition result:", { final, interim });
       if (final) {
-        // Process the final text to reduce excessive periods
-        const processedText = final
-          // Replace multiple periods with a single one
-          .replace(/\.+/g, '.')
-          // Remove periods at the end of words that aren't sentence endings
-          .replace(/(\w)\.(\s+\w)/g, '$1$2')
-          // Ensure proper spacing after remaining periods
-          .replace(/\.(\w)/g, '. $1');
-        
-        // Append to the editable text
+        // Strip out all commas and dots
+        const processed = final.replace(/[.,]/g, "");
         setTranscription(prev => {
-          // Get the current cursor position
-          const cursorPos = textareaRef.current?.selectionStart || prev.length;
-          // Insert the processed text at the current cursor position
-          const newText = prev.substring(0, cursorPos) + processedText + " " + prev.substring(cursorPos);
-          
-          // Update the cursor position after React updates the DOM
+          const cursor = textareaRef.current?.selectionStart ?? prev.length;
+          const newText = prev.slice(0, cursor) + processed + " " + prev.slice(cursor);
           setTimeout(() => {
             if (textareaRef.current) {
-              const newCursorPos = cursorPos + processedText.length + 1;
-              textareaRef.current.selectionStart = newCursorPos;
-              textareaRef.current.selectionEnd = newCursorPos;
+              const pos = cursor + processed.length + 1;
+              textareaRef.current.selectionStart = pos;
+              textareaRef.current.selectionEnd = pos;
               textareaRef.current.focus();
             }
           }, 0);
-          
           return newText;
         });
       }
-      
-      // Process interim transcription as well
-      const processedInterim = interim
-        .replace(/\.+/g, '.')
-        .replace(/(\w)\.(\s+\w)/g, '$1$2')
-        .replace(/\.(\w)/g, '. $1');
-      
+
+      // Also strip punctuation from interim text
+      const processedInterim = interim.replace(/[.,]/g, "");
       setInterimTranscription(processedInterim);
       setIsProcessing(!final && interim.length > 0);
     },
@@ -101,17 +74,15 @@ export default function SpeechToText() {
       setIsRecording(false);
     },
     onEnd: () => {
-      console.log("Speech recognition ended");
       setIsRecording(false);
     }
   });
 
-  // Effect to synchronize listening state with recording state
+  // Keep recording state in sync
   useEffect(() => {
     setIsRecording(isListening);
   }, [isListening]);
 
-  // Toggle recording state
   const toggleRecording = async () => {
     if (!isSupported) {
       toast({
@@ -122,15 +93,12 @@ export default function SpeechToText() {
       return;
     }
 
-    // Request microphone permission if not already granted
     if (!isMicrophoneAccessGranted) {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         setIsMicrophoneAccessGranted(true);
-        // Stop the tracks to release the microphone
-        stream.getTracks().forEach(track => track.stop());
-      } catch (error) {
-        console.error("Microphone access denied:", error);
+        stream.getTracks().forEach(t => t.stop());
+      } catch {
         toast({
           variant: "destructive",
           title: "Microphone Access Denied",
@@ -141,28 +109,21 @@ export default function SpeechToText() {
     }
 
     if (!isRecording) {
-      console.log("Starting speech recognition...");
       setIsProcessing(false);
       start();
     } else {
-      console.log("Stopping speech recognition...");
       stop();
     }
   };
 
-  // Copy transcription to clipboard
   const copyToClipboard = () => {
     if (!transcription) return;
-    
     navigator.clipboard.writeText(transcription)
       .then(() => {
-        toast({
-          title: "Success",
-          description: "Text copied to clipboard!",
-        });
+        toast({ title: "Success", description: "Text copied to clipboard!" });
       })
       .catch(err => {
-        console.error("Could not copy text: ", err);
+        console.error(err);
         toast({
           variant: "destructive",
           title: "Error",
@@ -171,22 +132,13 @@ export default function SpeechToText() {
       });
   };
 
-  // Clear transcription
   const clearTranscription = () => {
     setTranscription("");
     setInterimTranscription("");
-    toast({
-      title: "Success",
-      description: "Transcription cleared",
-    });
-    
-    // Focus the textarea after clearing
-    if (textareaRef.current) {
-      textareaRef.current.focus();
-    }
+    toast({ title: "Success", description: "Transcription cleared" });
+    textareaRef.current?.focus();
   };
 
-  // Handle text change in editable mode
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setTranscription(e.target.value);
   };
@@ -201,28 +153,26 @@ export default function SpeechToText() {
           onClick={toggleRecording}
           disabled={!isSupported}
           className={`w-24 h-24 rounded-full app-button ${
-            isRecording 
-              ? "mic-button-recording" 
-              : "mic-button"
+            isRecording ? "mic-button-recording" : "mic-button"
           } text-white flex items-center justify-center transition-all duration-300`}
           aria-label={isRecording ? "Stop recording" : "Start recording"}
         >
           <Mic className="h-10 w-10" />
         </Button>
-        
+
         {isRecording && (
           <div className="mt-3 flex items-center space-x-2 fade-in">
-            <div className="recording-dot w-3 h-3 bg-red-600 rounded-full"></div>
-            <span className="text-red-600 font-semibold">Recording...</span>
+            <div className="recording-dot w-3 h-3 bg-red-600 rounded-full" />
+            <span className="text-red-600 font-semibold">Listening...</span>
           </div>
         )}
-        
+
         {isProcessing && !isRecording && (
           <div className="mt-3 flex items-center space-x-2 fade-in">
             <div className="flex space-x-1">
-              <div className="loading-dot w-2 h-2 bg-indigo-600 rounded-full"></div>
-              <div className="loading-dot w-2 h-2 bg-indigo-600 rounded-full"></div>
-              <div className="loading-dot w-2 h-2 bg-indigo-600 rounded-full"></div>
+              <div className="loading-dot w-2 h-2 bg-indigo-600 rounded-full" />
+              <div className="loading-dot w-2 h-2 bg-indigo-600 rounded-full" />
+              <div className="loading-dot w-2 h-2 bg-indigo-600 rounded-full" />
             </div>
             <span className="text-indigo-600 font-semibold">Processing...</span>
           </div>
@@ -230,14 +180,13 @@ export default function SpeechToText() {
       </div>
 
       {/* Transcription Display */}
-      <Card className="app-card w-[calc(100%+9px)] mx-auto mt-5">
-        <CardContent className="p-4 md:p-5 min-h-[270px] max-h-[440px] overflow-y-auto">
+      <Card className="app-card w-[calc(100%)] mx-auto mt-5">
+        <CardContent className="p-2 md:p-3 min-h-[270px] max-h-[440px] overflow-y-auto">
           <div className="flex items-center mb-3 text-slate-700">
             <Sparkles className="h-5 w-5 text-indigo-500 mr-2" />
             <h2 className="text-lg font-semibold">Your Transcription</h2>
           </div>
-          
-          <div className="relative min-h-[190px] text-area-container w-[calc(100%+9px)]">
+          <div className="relative min-h-[190px] text-area-container w-[calc(100%)]">
             <Textarea
               ref={textareaRef}
               value={transcription}
@@ -245,17 +194,15 @@ export default function SpeechToText() {
               placeholder="Type or speak to add text here..."
               className="custom-textarea min-h-[190px] p-3 text-slate-700 w-full"
             />
-            
-            {/* Show interim text with better styling */}
             {interimTranscription && (
               <div className="absolute bottom-3 right-3 interim-text">
-                {interimTranscription}...
+                {interimTranscription}
               </div>
             )}
           </div>
         </CardContent>
       </Card>
-      
+
       {/* Action Buttons */}
       <div className="flex flex-wrap justify-center gap-4 mt-5">
         <Button
@@ -267,7 +214,7 @@ export default function SpeechToText() {
           <Clipboard className="h-5 w-5" />
           Copy Text
         </Button>
-        
+
         <Button
           variant="secondary"
           onClick={clearTranscription}
